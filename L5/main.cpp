@@ -1,4 +1,4 @@
-#define _CRT_SECURE_NO_WARNINGS
+﻿#define _CRT_SECURE_NO_WARNINGS
 #include <string>
 #include <gl\glut.h>
 #define STB_IMAGE_IMPLEMENTATION
@@ -8,6 +8,8 @@
 #ifdef GL_GLEXT_PROTOTYPES
 GLAPI void APIENTRY glGenerateMipmap(GLenum);
 #endif 
+#include <vector>
+#include <iostream>
 
 int mode = 1;
 GLfloat rot;
@@ -25,7 +27,7 @@ GLuint loadTexture(std::string name, bool mipmap = false) {
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-	
+
 	if (mipmap) {
 		gluBuild2DMipmaps(GL_TEXTURE_2D, 3, width, height, channels == 4 ? GL_RGBA : GL_RGB, GL_UNSIGNED_BYTE, data);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
@@ -34,11 +36,41 @@ GLuint loadTexture(std::string name, bool mipmap = false) {
 		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, channels == 4 ? GL_RGBA : GL_RGB, GL_UNSIGNED_BYTE, data);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 	}
-		
+
 	glBindTexture(GL_TEXTURE_2D, 0);
 
 	stbi_image_free(data);
 
+	return texture;
+}
+
+GLuint loadMipmapTexture(std::vector<std::string>& filenames, int mw = 256, int mh = 256) {
+	GLuint texture;
+
+	glGenTextures(1, &texture);
+	glBindTexture(GL_TEXTURE_2D, texture);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+	// В цикле загружаем каждый уровень
+	for (size_t level = 0; level < filenames.size(); ++level) {
+		int width, height, channels;
+		unsigned char* data = stbi_load(filenames[level].c_str(), &width, &height, &channels, 0);
+		if (!data) {
+			std::cerr << "Failed to load image: " << filenames[level] << std::endl;
+			continue;
+		}
+
+		glTexImage2D(GL_TEXTURE_2D, (GLint)level, GL_RGB, width, height, 0, channels == 4 ? GL_RGBA : GL_RGB, GL_UNSIGNED_BYTE, data);
+
+		stbi_image_free(data);
+	}
+
+	GLenum err = glGetError();
+	if (err != GL_NO_ERROR)
+		std::cerr << "GL error after TexImage2D: " << std::hex << err << std::endl;
+
+	glBindTexture(GL_TEXTURE_2D, 0);
 	return texture;
 }
 
@@ -50,7 +82,19 @@ void loadTextures() {
 	textures[4] = loadTexture("bmp/4.bmp");
 	textures[5] = loadTexture("bmp/5.bmp");
 	textures[6] = loadTexture("bmp/6.bmp");
-	textures[7] = loadTexture("bmp/256.bmp", true);
+	//textures[7] = loadTexture("bmp/256.bmp", true);
+	std::vector<std::string> tlayers = {
+	"bmp/256.png",
+	"bmp/128.png",
+	"bmp/64.png",
+	"bmp/32.png",
+	"bmp/16.png",
+	"bmp/8.png",
+	"bmp/4.png",
+	"bmp/2.png",
+	"bmp/1.png",
+	};
+	textures[7] = loadMipmapTexture(tlayers);
 }
 
 void scene() {
@@ -265,8 +309,8 @@ void scene() {
 		glEnable(GL_TEXTURE_GEN_S);
 		glEnable(GL_TEXTURE_GEN_T);
 
-		GLdouble ss[4] = { 0.4, 0, 0, 0.0 };
-		GLdouble tt[4] = { 0, 0.4, 0, 0.0 };
+		GLdouble ss[4] = { 0.4, 0, 0, 0.5 };
+		GLdouble tt[4] = { 0, 0.4, 0, 0.5 };
 		glTexGeni(GL_S, GL_TEXTURE_GEN_MODE, GL_OBJECT_LINEAR);
 		glTexGendv(GL_S, GL_OBJECT_PLANE, ss);
 		glTexGeni(GL_T, GL_TEXTURE_GEN_MODE, GL_OBJECT_LINEAR);
@@ -341,7 +385,7 @@ void scene() {
 
 			glBegin(GL_QUADS);
 			glVertex3fv(vert[i - 1][0]);
-		    glVertex3fv(vert[i - 1][1]);
+			glVertex3fv(vert[i - 1][1]);
 			glVertex3fv(vert[i - 1][2]);
 			glVertex3fv(vert[i - 1][3]);
 			glEnd();

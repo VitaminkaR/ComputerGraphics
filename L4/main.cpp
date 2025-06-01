@@ -123,6 +123,9 @@ void Display() {
 
 	glRotatef(rot, 0, 1, 0);
 
+	glLightf(GL_LIGHT0, GL_SPOT_CUTOFF, 180);
+	glLightf(GL_LIGHT1, GL_SPOT_CUTOFF, 180);
+
 	switch (mode)
 	{
 	case 1:
